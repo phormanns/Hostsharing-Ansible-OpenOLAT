@@ -1,0 +1,7 @@
+/home/pacs/{{pac}}/users/{{user}}/tomcat/logs/catalina.out {
+   copytruncate
+   compress
+   rotate 5
+   daily
+   missingok
+}

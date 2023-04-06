@@ -1,0 +1,2 @@
+127.0.0.1:5432:{{pac}}_{{user}}:{{pac}}_{{user}}:{{password}}
+localhost:5432:{{pac}}_{{user}}:{{pac}}_{{user}}:{{password}}

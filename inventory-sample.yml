@@ -1,0 +1,19 @@
+openolat:
+  hosts:
+    xyz00:
+      ansible_ssh_host: xyz00.hostsharing.net
+      ansible_ssh_user: xyz00
+      pac: xyz00
+      domain: lms.hs-example.de
+      user: olat
+      password: GutesPasswortErzeugen
+      ConnectorPort: 39009
+
+      # see https://www.xwiki.org/xwiki/bin/view/Download/
+      openolat_version: 1725
+      # see https://jdbc.postgresql.org/download/
+      postgresql_jdbc_version: 42.6.0
+
+      # existing java and tomcat installation in pac
+      java_home: /home/pacs/xyz00/jdk-17.0.6+10
+      catalina_home: /home/pacs/xyz00/apache-tomcat-10.1.7

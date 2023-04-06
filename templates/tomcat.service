@@ -1,0 +1,21 @@
+[Unit]
+Description=Tomcat User Service
+
+[Service]
+WorkingDirectory=%h/tomcat
+Environment="PATH=/usr/local/bin:/usr/bin:/bin"
+Environment="JAVA_HOME={{java_home}}"
+Environment="JAVA_OPTS=-Xms256M -Xmx512M"
+ExecStart=%h/tomcat/bin/catalina.sh run
+Restart=always
+PrivateTmp=true
+NoNewPrivileges=true
+MemoryAccounting=true
+CPUAccounting=true
+MemoryHigh=768K
+MemoryMax=1024K
+StandardOutput=file:%h/tomcat/logs/catalina.log
+StandardError=inherit
+
+[Install]
+WantedBy=default.target

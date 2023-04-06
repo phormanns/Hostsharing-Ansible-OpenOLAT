@@ -1,0 +1,185 @@
+---
+- hosts: openolat
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+  tasks:
+
+  ##############################################
+  ## setup the user, the database and the domain
+  ##############################################
+  - name: ensure user exists
+    hsuser.js: name="{{pac}}-{{user}}" password="{{password}}" shell="/bin/bash" exists="true"
+  - name: setup database
+    hsdatabase.js: name="{{pac}}_{{user}}" password="{{password}}" instance="postgresql" exists="true"
+  - name: setup domain
+    hsdomain.js: name="{{domain}}" owner="{{pac}}-{{user}}" exists="true"
+  - name: Sleep to avoid issue invalid user for temporary files
+    pause:
+      seconds: 10
+    #################################
+    ## setup tomcat
+    #################################
+  - name: Creating target directory
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    file: >
+      path="/home/pacs/{{pac}}/users/{{user}}/tomcat" 
+      state=directory
+  - name: Creating tomcat directory structure
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    file: >
+      path="/home/pacs/{{pac}}/users/{{user}}/tomcat/{{item}}"  
+      state=directory
+    with_items:
+      - bin
+      - conf
+      - conf/Catalina
+      - conf/Catalina/localhost
+      - lib
+      - logs
+      - temp
+      - webapps
+      - work
+  - name: Copy tomcat/bin files
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    command: >
+      cp "{{catalina_home}}/bin/{{item}}" "/home/pacs/{{pac}}/users/{{user}}/tomcat/bin/"
+      creates="/home/pacs/{{pac}}/users/{{user}}/tomcat/bin/{{item}}"
+    with_items:
+      - startup.sh
+      - shutdown.sh
+      - catalina.sh
+      - setclasspath.sh
+  - name: Copy tomcat/conf files
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    command: >
+      cp "{{catalina_home}}/conf/{{item}}" "/home/pacs/{{pac}}/users/{{user}}/tomcat/conf/"
+      creates="/home/pacs/{{pac}}/users/{{user}}/tomcat/conf/{{item}}"
+    with_items:
+      - catalina.properties
+      - logging.properties
+      - catalina.policy
+      - context.xml
+      - web.xml
+      - tomcat-users.xml
+      - tomcat-users.xsd
+      - jaspic-providers.xml
+      - jaspic-providers.xsd
+  - name: upload setenv.sh
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    template:
+      src: "templates/setenv.sh"
+      dest: "/home/pacs/{{pac}}/users/{{user}}/tomcat/bin/setenv.sh"
+      mode: 0744
+  - name: replace server.xml
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    template:
+      src: "templates/server.xml"
+      dest: "/home/pacs/{{pac}}/users/{{user}}/tomcat/conf/server.xml"
+      mode: 0644
+
+  #################################
+  ## setup the OpenOLAT
+  #################################
+  - name: create directory for olat webapp
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    file:
+      path: "/home/pacs/{{pac}}/users/{{user}}/webapp"
+      state: directory
+  - name: download and install war file 
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    unarchive:
+      creates: /home/pacs/{{pac}}/users/{{user}}/webapp/WEB-INF/xwiki.properties
+      src: https://www.openolat.com/fileadmin/downloads/releases/openolat_{{openolat_version}}.war
+      remote_src: yes
+      dest: /home/pacs/{{pac}}/users/{{user}}/webapp
+  - name: install jdbc driver
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    get_url:
+      url: https://jdbc.postgresql.org/download/postgresql-{{postgresql_jdbc_version}}.jar
+      dest: /home/pacs/{{pac}}/users/{{user}}/tomcat/lib/postgresql-{{postgresql_jdbc_version}}.jar
+  - name: upload webapp context
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    template: dest="/home/pacs/{{pac}}/users/{{user}}/tomcat/conf/Catalina/localhost/ROOT.xml" src="templates/ROOT.xml" mode=0600
+  - name: upload olat config
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    template: dest="/home/pacs/{{pac}}/users/{{user}}/tomcat/lib/olat.local.properties" src="templates/olat.local.properties" mode=0600
+  - name: upload pgpass
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    template: dest="/home/pacs/{{pac}}/users/{{user}}/.pgpass" src="templates/pgpass" mode=0600
+  - name: setup database
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    shell: |
+      jar xf $HOME/webapp/WEB-INF/lib/openolat-lms-17.2-SNAPSHOT.jar database/postgresql/setupDatabase.sql 
+      psql -h localhost -U peh19_olat peh19_olat <database/postgresql/setupDatabase.sql 
+    args:
+      executable: /bin/bash
+      chdir: "/home/pacs/{{pac}}/users/{{user}}"
+      creates: "/home/pacs/{{pac}}/users/{{user}}/database/postgresql/setupDatabase.sql"
+
+  #################################
+  ## apache configuration
+  #################################
+  - name: upload .htaccess
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    template: dest="/home/pacs/{{pac}}/users/{{user}}/doms/{{domain}}/htdocs-ssl/.htaccess" src="templates/htaccess" mode=0644
+
+  ####################################
+  ## service & logrotate configuration
+  ####################################
+  - name: create directory for services
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    file:
+      path: "/home/pacs/{{pac}}/users/{{user}}/.config/systemd/user"
+      state: directory
+  - name: upload service unit
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    template: dest="/home/pacs/{{pac}}/users/{{user}}/.config/systemd/user/tomcat.service" src="templates/tomcat.service" mode=0600
+  - name: upload logrotate configuration
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    template: dest="/home/pacs/{{pac}}/users/{{user}}/.logrotate" src="templates/logrotate" mode=0600
+  - name: run logrotate once a day
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    cron:
+      name: "logrotate"
+      minute: "22"
+      hour: "1"
+      job: "/usr/sbin/logrotate -s $HOME/.logrotate.state $HOME/.logrotate"
+  - name: delete old tomcat logs
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    cron:
+      name: "delete tomcat logs"
+      minute: "14"
+      hour: "3"
+      job: "/usr/bin/find $HOME/tomcat/logs -type f -mmin +10080 -delete"
+
+  ##################################################
+  ## start tomcat service via systemd
+  ##################################################
+  - name: run tomcat service
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    ansible.builtin.systemd:
+      name: tomcat
+      enabled: true
+      state: started
+      scope: user
+      daemon_reload: true

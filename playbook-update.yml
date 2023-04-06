@@ -1,0 +1,114 @@
+---
+- hosts: xwiki
+  become_user: "{{pac}}-{{user}}"
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+  tasks:
+
+  ##############################################
+  ## stop service
+  ##############################################
+  - name: stop tomcat service
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    ansible.builtin.systemd:
+      name: tomcat
+      state: stopped
+      scope: user
+
+  #################
+  ## create backup
+  #################
+  - name: check if backup file exists
+    become: yes
+    stat: 
+      path: "/home/pacs/{{pac}}/users/{{user}}/Backup-{{ ansible_date_time.date }}.tar.gz"
+    register: backup_root
+
+  - name: create backup of ROOT
+    become: yes
+    archive:
+      path: "/home/pacs/{{pac}}/users/{{user}}/tomcat/webapps/ROOT"
+      dest: "/home/pacs/{{pac}}/users/{{user}}/Backup-{{ ansible_date_time.date }}.tar.gz"
+    when: backup_root.stat.exists == False
+
+  ################
+  ## update ROOT
+  ################
+  - name: Move ROOT away
+    become: yes
+    command: mv "/home/pacs/{{pac}}/users/{{user}}/tomcat/webapps/ROOT" "/home/pacs/{{pac}}/users/{{user}}/ROOT_Backup_{{ ansible_date_time.date }}"
+  - name: Create ROOT directory again
+    become: yes
+    file:
+      path: "/home/pacs/{{pac}}/users/{{user}}/tomcat/webapps/ROOT"
+      state: directory
+  - name: download and install war file for xwiki
+    become: yes
+    unarchive:
+      creates: /home/pacs/{{pac}}/users/{{user}}/tomcat/webapps/ROOT/WEB-INF/xwiki.properties
+      src: https://nexus.xwiki.org/nexus/content/groups/public/org/xwiki/platform/xwiki-platform-distribution-war/{{xwiki_lts_version}}/xwiki-platform-distribution-war-{{xwiki_lts_version}}.war
+      remote_src: yes
+      dest: /home/pacs/{{pac}}/users/{{user}}/tomcat/webapps/ROOT
+  - name: copy xwiki.cfg
+    become: yes
+    copy:
+      src: "/home/pacs/{{pac}}/users/{{user}}/ROOT_Backup_{{ ansible_date_time.date }}/WEB-INF/xwiki.cfg"
+      dest: "/home/pacs/{{pac}}/users/{{user}}/tomcat/webapps/ROOT/WEB-INF/"
+      remote_src: yes
+  - name: copy xwiki.properties
+    become: yes
+    copy:
+      src: "/home/pacs/{{pac}}/users/{{user}}/ROOT_Backup_{{ ansible_date_time.date }}/WEB-INF/xwiki.properties"
+      dest: "/home/pacs/{{pac}}/users/{{user}}/tomcat/webapps/ROOT/WEB-INF/"
+      remote_src: yes
+  - name: copy hibernate.cfg.xml
+    become: yes
+    copy:
+      src: "/home/pacs/{{pac}}/users/{{user}}/ROOT_Backup_{{ ansible_date_time.date }}/WEB-INF/hibernate.cfg.xml"
+      dest: "/home/pacs/{{pac}}/users/{{user}}/tomcat/webapps/ROOT/WEB-INF/"
+      remote_src: yes
+  - name: download and install postgresql jdbc
+    # see https://jdbc.postgresql.org/download.html
+    become: yes
+    get_url:
+      url: https://jdbc.postgresql.org/download/postgresql-{{postgresql_jdbc_version}}.jar
+      dest: /home/pacs/{{pac}}/users/{{user}}/tomcat/webapps/ROOT/WEB-INF/lib/postgresql-{{postgresql_jdbc_version}}.jar
+  - name: find new versions of uploaded plugins
+    become: yes
+    find:
+      paths: "/home/pacs/{{pac}}/users/{{user}}"
+      patterns: '*-{{xwiki_lts_version}}.jar'
+    register: my_plugins
+  - name: install new version of uploaded plugins
+    become: yes
+    copy:
+      remote_src: yes
+      src: "{{ item.path }}"
+      dest: "/home/pacs/{{pac}}/users/{{user}}/tomcat/webapps/ROOT/WEB-INF/lib/"
+    with_items: "{{ my_plugins.files }}"
+
+  ######################
+  ## drop old caches
+  ######################
+  - name: clear xwiki-data cache
+    become: yes
+    file:
+      path: "/home/pacs/{{pac}}/users/{{user}}/xwiki-data/cache/"
+      state: absent
+  - name: recreate directory xwiki-data cache
+    become: yes
+    file:
+      path: "/home/pacs/{{pac}}/users/{{user}}/xwiki-data/cache/"
+      state: directory
+
+  ##############################################
+  ## start service
+  ##############################################
+  - name: start tomcat service
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    ansible.builtin.systemd:
+      name: tomcat
+      state: started
+      scope: user
