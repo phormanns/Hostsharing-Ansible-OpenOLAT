@@ -1,4 +1,4 @@
-/home/pacs/{{pac}}/users/{{user}}/tomcat/logs/catalina.out {
+/home/pacs/{{pac}}/users/{{user}}/tomcat/logs/catalina.log {
    copytruncate
    compress
    rotate 5
