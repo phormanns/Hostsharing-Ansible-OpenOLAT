@@ -36,5 +36,7 @@ Now we can reach our site via:
 
     https://lms.hs-example.de/
 
+Login as administrator / openolat
+
 --- Open Source Hosting ---
  https://www.hostsharing.net
