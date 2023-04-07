@@ -123,7 +123,7 @@
     become_user: "{{pac}}-{{user}}"
     shell: |
       jar xf $HOME/webapp/WEB-INF/lib/openolat-lms-17.2-SNAPSHOT.jar database/postgresql/setupDatabase.sql 
-      psql -h localhost -U peh19_olat peh19_olat <database/postgresql/setupDatabase.sql 
+      psql -h localhost -U {{pac}}_{{user}} {{pac}}_{{user}} <database/postgresql/setupDatabase.sql 
     args:
       executable: /bin/bash
       chdir: "/home/pacs/{{pac}}/users/{{user}}"
