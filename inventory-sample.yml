@@ -6,10 +6,10 @@ openolat:
       pac: xyz00
       domain: lms.hs-example.de
       user: olat
-      password: GutesPasswortErzeugen
+      password: "{{ lookup('ansible.builtin.password', '.passwd/user-password', length=28, chars=['ascii_letters', 'digits']) }}"
       ConnectorPort: 39009
 
-      # see https://www.xwiki.org/xwiki/bin/view/Download/
+      # see https://www.openolat.com/fileadmin/downloads/releases/
       openolat_version: 1725
       # see https://jdbc.postgresql.org/download/
       postgresql_jdbc_version: 42.6.0
