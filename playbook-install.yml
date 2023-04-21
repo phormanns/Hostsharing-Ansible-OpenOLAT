@@ -82,6 +82,13 @@
       src: "templates/server.xml"
       dest: "/home/pacs/{{pac}}/users/{{user}}/tomcat/conf/server.xml"
       mode: 0644
+  - name: upload log4j2.xml
+    become: yes
+    become_user: "{{pac}}-{{user}}"
+    template:
+      src: "templates/log4j2.xml"
+      dest: "/home/pacs/{{pac}}/users/{{user}}/tomcat/lib/log4j2.xml"
+      mode: 0644
 
   #################################
   ## setup the OpenOLAT
@@ -122,7 +129,7 @@
     become: yes
     become_user: "{{pac}}-{{user}}"
     shell: |
-      jar xf $HOME/webapp/WEB-INF/lib/openolat-lms-17.2-SNAPSHOT.jar database/postgresql/setupDatabase.sql 
+      jar xf $HOME/webapp/WEB-INF/lib/openolat-lms*.jar database/postgresql/setupDatabase.sql 
       psql -h localhost -U {{pac}}_{{user}} {{pac}}_{{user}} <database/postgresql/setupDatabase.sql 
     args:
       executable: /bin/bash
