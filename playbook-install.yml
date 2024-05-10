@@ -56,18 +56,15 @@
     become: yes
     become_user: "{{pac}}-{{user}}"
     command: >
-      cp "{{catalina_home}}/conf/{{item}}" "/home/pacs/{{pac}}/users/{{user}}/tomcat/conf/"
+      cp "{{catalina_home}}/skel/conf/{{item}}" "/home/pacs/{{pac}}/users/{{user}}/tomcat/conf/"
       creates="/home/pacs/{{pac}}/users/{{user}}/tomcat/conf/{{item}}"
     with_items:
       - catalina.properties
       - logging.properties
-      - catalina.policy
       - context.xml
       - web.xml
       - tomcat-users.xml
-      - tomcat-users.xsd
       - jaspic-providers.xml
-      - jaspic-providers.xsd
   - name: upload setenv.sh
     become: yes
     become_user: "{{pac}}-{{user}}"
